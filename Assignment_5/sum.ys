@@ -1,0 +1,52 @@
+.pos 0x0
+    irmovl $10,   %eax     # N = 10
+    irmovl $0,    %ebx     # currentN
+    irmovl $0,    %ecx     # offset of arr
+mainloop:
+    irmovl $0,  %edx    # inits current sum
+    irmovl $0,  %esi    # inits i, sets to 0
+summationloop:
+    irmovl $10, %esp    #temp stores 10
+    subl %esp, %edx     #subs -10 from sum
+    irmovl $0, %ebp     # stores num adds (till 7)
+partloop:
+    rrmovl %esi, %esp     #temp stores i
+    addl %esp, %edx     #adds i to sum
+    
+    irmovl $1, %esp     #temp stores 1
+    addl %esp, %ebp     #increments num adds
+    
+    #checks if more addition necessary
+    irmovl 7, %esp  # temp stores 7
+    subl   %ebp, %esp  # subtracts 7 - num adds
+    jg partloop     # repeats add if adds < sum round
+    
+    irmovl $1, %esp     #temp stores 1
+    addl %esp, %esi     #increments i
+    
+    rrmovl %ebx, %esp  # temp stores currentN
+    subl   %esi, %esp  # subtracts i
+    jge summationloop     # repeats if currentN - i <=0
+    
+    irmovl $1, %esp     #temp stores 1
+    addl %esp, %ebx     #increments currentN
+    
+    # save to array
+    irmovl array, %edi #saves base of array
+    addl %ecx, %edi  # edi = base array + offset
+    rmmovl %edx, (%edi) # save total sum to array
+    
+    #increment offset
+    irmovl $4, %esp     #temp stores 4
+    addl %esp, %ecx     #increments offset
+    
+    #runs for new val of n if necessary
+    rrmovl %eax, %esp  # temp stores N
+    subl   %ebx, %esp  # subtracts currentN
+    jge mainloop     # repeats if N - currentN <=0
+    
+    
+    halt
+.align 4
+array:
+

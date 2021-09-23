@@ -1,0 +1,328 @@
+// Assignment 8 for Computer Organization (CSCI 304)
+// By Kirill Usubyan. Due 5/7/21
+//shortor.ys file
+
+.pos 0x0
+
+main: 
+   irmovl stack, %esp    # set stack ptr
+   irmovl input, %esi    # input
+   irmovl output, %edi   # output
+   
+mainloop:
+    # get num
+    mrmovl (%esi), %ecx   # %ecx gets num from input
+
+    # test for end    
+    irmovl $0, %edx       # get ready to test value for 0
+    addl   %ecx, %edx     # add just to set condition codes
+    je     end            # val == 0, so we're done
+
+    # store num in output
+    rmmovl %ecx, (%edi)   # store num in output
+    
+    irmovl $4, %edx       # temp for incrementing address
+    addl   %edx, %edi     # set new output address
+
+    # get negation
+    pushl %ecx      # push num as argument
+    call negation
+    popl %ecx       # pop argument
+    # store negation in output
+    rmmovl %eax, (%edi)   # store negation in output
+    
+    irmovl $4, %edx       # temp for incrementing address
+    addl   %edx, %edi     # set new output address
+
+    pushl %eax      # store negation
+
+    # calculate square
+    pushl %ecx      # save num value
+    pushl %ecx      # push num as argument
+    
+    call square
+
+    popl %ecx       # pop argument
+    popl %ecx       # restore num value    
+
+    rmmovl %edx, (%edi)   # store square in output
+    
+    pushl %edx      # store val of square
+    
+    irmovl $4, %ebx       # temp for incrementing address
+    addl   %ebx, %edi     # set new output address
+
+    popl %edx       # restore val of square
+    popl %eax       # restore negation
+
+    # calculate num2 (absolute val)
+    irmovl $0, %ebx      # set temp %ebx to 0
+    addl %ecx, %ebx      # %ebx = 0 + num
+    jl numneg           # if num is negative
+    # else num is positive
+    # leave num2 (%edx) = num
+    jmp maincont # continue
+    
+# if num is negative
+numneg:
+    rrmovl %eax, %ebx # set num2 = negation of num
+    # continue to maincont
+
+maincont:
+    # store calculated values to free up registers
+    pushl %edx      # save square
+    pushl %eax      # save negated value
+    pushl %ecx      # save num value
+    
+    rrmovl %ebx, %edx   # %edx = num2
+
+    # calculate rfact for num2 (absolute val of num)
+    # %ebx will store result
+    pushl %edx          # pass param (num2)
+    call rfact
+    popl %edx           # pop argument
+
+    rmmovl %ebx, (%edi)   # store rfact in output
+    
+    irmovl $4, %edx       # temp for incrementing address
+    addl   %edx, %edi     # set new output address
+    
+        
+    # restore calculated values
+    popl %ecx       # restore num
+    popl %eax       # restore negated val
+    popl %edx       # restore squared val
+    
+    pushl %esi      # save input ptr, use as temp register
+    pushl %edi      # save ouput ptr, use as temp register
+
+    irmovl $0, %esi # %esi = temp register for status
+    
+    irmovl $1, %edi # %edi = 1 (temp)
+    andl %ecx, %edi # %edi = num & 1 (bitwise)
+    # if num&1 > 0 then num is odd
+    jg numisodd # jump to odd
+    # else, num is even
+    jmp statusnegtest
+    
+numisodd:        
+    addl %edi, %esi # %esi = status += 1
+
+statusnegtest:
+    irmovl $0, %edi # %edi = 0
+    
+    addl %ecx, %edi # %edi = num
+    # if num < 0
+    jl statusnumneg  # if num is negative
+    # else num > 0
+    jmp statussquaretest # jump
+statusnumneg:
+    irmovl $2, %edi # %edi = 2 (temp)
+    addl %edi, %esi # %esi += 2
+
+statussquaretest:
+    irmovl $100, %edi # %edi = 100 (temp)
+    subl %edx, %edi   # %edi = 100 - numsquared
+    # if numsquared > 100 (100 -numsquared < 0)
+    jl statuslargesquare # jump to status handle
+    # else
+    jmp endmainloop      # jump to end
+
+statuslargesquare:
+    irmovl $4, %edi # %edi = 4 (temp)
+    addl %edi, %esi # %esi += 4
+
+endmainloop:
+    # add 16 to status 
+    irmovl $16, %edi # %edi = 16 (temp)
+    addl %edi, %esi # %esi += 16
+
+    popl %edi       # restore ouput ptr
+
+    
+    rmmovl %esi, (%edi)   # store status in output
+
+    popl %esi       # restore input ptr
+    
+    irmovl $4, %ebx       # temp for incrementing address
+    addl   %ebx, %edi     # set new output address
+    
+    # increase index to select new num
+    addl   %ebx, %esi     # set new output address
+
+    # set %ebx to dec of hex line of 1s
+    irmovl 0x11111111, %ebx     # %ebx has temp val
+    rmmovl %ebx, (%edi)   # store hex line in output
+
+    # increase val of output
+    irmovl $4, %ebx       # temp for incrementing address
+    addl   %ebx, %edi     # set new output address
+
+    
+    # repeat mainloop for next input
+    jmp mainloop
+
+# negation
+negation: 
+    pushl %ebp  # prologue
+    rrmovl %esp, %ebp # set up stack pointer
+    pushl %ebx      # saves %ebx, will be used
+    # copy val of num, from parameter
+    mrmovl 8(%ebp), %eax # %eax = param
+    rrmovl %eax, %ebx   # copies param to %ebx
+    # subtract num from copy twice to negate
+    subl %ebx, %eax # %eax -= num
+    subl %ebx, %eax #  %eax -= num
+    
+    popl %ebx    # restores value
+    popl %ebp    # epilogue
+    ret # returns val in %eax
+    
+# rmult 
+
+# result stored in %edx
+rmult:
+    # read in arguments
+    pushl %ebp  # prologue
+    rrmovl %esp, %ebp # set up stack pointer
+    
+    # fetches param, sets temp registers
+    mrmovl 8(%ebp), %eax # %eax = x
+    mrmovl 12(%ebp), %ebx # %ebx = y
+
+    irmovl $1, %ecx       # set temp %edx to 1
+    subl %ebx, %ecx       # %edx = 1- y
+    # if y != 1, recursive case
+    jne recursivecasemult
+    # else, if y==1, then base case
+basecasemult:
+    addl %eax, %edx # result += x
+
+    popl %ebp       # epilogue
+
+    ret     # finished multiplying
+
+recursivecasemult: # y != 1
+    irmovl $1, %ecx       # set temp %ecx to 1
+    subl %ecx, %ebx       # %ebx = y-1
+
+    addl %eax, %edx # result += x
+    
+    # push 2 val
+    pushl %ebx  # push second param (y)
+    pushl %eax  # push first param (x)
+
+    call rmult
+
+    # pop 2 val
+    popl %eax  # pop first arg (x)
+    popl %ebx  # pop second arg (y)
+    
+    popl %ebp   # epilogue
+    ret 
+    
+# square
+square:
+    pushl %ebp  # prologue
+    rrmovl %esp, %ebp # set up stack pointer
+
+    # fetches param, sets temp registers
+    mrmovl 8(%ebp), %eax # %eax = param
+    
+    # test for if num is neg
+    irmovl $0, %ebx    # %ebx = 0 (temp)
+    addl %eax, %ebx    # %ebx = 0 + num
+    # if num is neg
+    jl squarenegatenum    #negate num
+    # else
+    jmp squarecontinued
+
+squarenegatenum:
+    # call negate on num
+    pushl %eax      # pushes num argument
+    
+    call negation   # negates and stores in %eax
+    
+    popl %ebx       # removes argument
+
+squarecontinued:
+    rrmovl %eax, %ebx   # copies num to %ebx
+    irmovl $0, %edx     # sets up return var
+    
+    pushl %ebx  # push second param (y)
+    pushl %eax  # push first param (x)
+    
+    call rmult
+
+    popl %eax   # pop argument
+    popl %eax   # pop argument
+    
+    popl %ebp   # epilogue
+    ret
+
+# rfact, calc factorial
+# returns in %ebx
+rfact:
+    pushl %ebp  # prologue
+    rrmovl %esp, %ebp # set up stack pointer
+
+    # copy val of num, from parameter
+    mrmovl 8(%ebp), %ecx # %ecx = param
+
+    # check for n <= 1
+    irmovl $1, %eax     # temp %eax = 1
+    subl %ecx, %eax     # %eax = 1- %ecx
+    jl recursiverfact   # recur if param > 1 
+    # else continue to base case
+baserfact:
+    irmovl $1, %ebx  # set return =1
+    
+    popl %ebp    # epilogue
+
+    ret # returns val in %ebx
+    
+recursiverfact:
+    # get n = n-1
+    rrmovl %ecx, %edx   # copy %ecx, so %edx = n
+    irmovl $1, %eax     # temp %eax=1
+    subl %eax, %edx     # %edx = n-1
+    
+    pushl %edx      # push n-1 param
+    
+    call rfact      # call rfact for n-1
+    # after, %edx= rfact(n-1)
+    
+    popl %ebx       # pop argument
+    
+    # multiply rfact(n-1) and n
+    pushl %ebx      # push arg n
+    pushl %edx      # push arg rfact(n-1)
+    
+    call rmult      # multiply nums
+    # after, %edx= rfact(n-1) * n
+    
+    popl %eax       # pop temp argument
+    popl %eax       # pop temp argument
+
+    rrmovl %edx, %ebx  # return =  n * rfact(n-1)
+
+    popl %ebp    # epilogue
+
+    ret # returns val in %ebx
+    
+#end 
+end:
+    halt
+.align 4
+
+input:
+    .long 4
+    .long -9
+    .long 13
+    .long 0
+
+output:
+
+.pos 0x2000
+stack:
+    

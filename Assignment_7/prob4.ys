@@ -1,0 +1,21 @@
+# assume x in %edi, y in %esi, and z in %edx
+.pos 0x100
+test: 
+ rrmovl %edi, %eax               # %eax = x
+ addl %edx, %eax                 # %eax = x + z
+ rrmovl %edi, %ebx               # %ebx = x
+ addl %esi, %ebx                 # %ebx = x + y
+ subl %edx, %ebx                 # %ebx = x + y - z
+ jg L1                           # if x + y - z > 0, jump L1
+ irmovl $1, %ecx                 # %ecx = 1
+ subl %esi, %ecx                 # %ecx = 1 - y
+ jge L2                          # if 1 - y >= 0, jump L2
+ addl %esi, %eax                 # %eax = x + z + y
+ jmp L4                          # else jump L4
+L2: subl %edx, %eax        # % eax -= z
+ jmp L4                    # jump L4
+L1: irmovl $1, %ecx           # %ecx = 1
+ subl %edi, %ecx              # %ecx = 1 - x  
+ jl L4                        # if 1 - x < 0, jump L4
+ subl %esi, %eax              # %eax -= y
+L4: ret                             # return
